@@ -14,6 +14,39 @@ cd tests
 
 # Quick syntax check only
 ./run-tests.sh quick
+
+# Run all test files individually (no Docker)
+./run-all-tests.sh
+```
+
+## Running All Test Files
+
+The `run-all-tests.sh` script runs all BATS test files individually and provides a summary:
+
+```bash
+cd tests
+./run-all-tests.sh
+```
+
+**Output:**
+```
+🧪 Worktree Wrangler T - Running All Test Files
+==================================================
+
+🧪 Running tests/tests.bats
+✅ tests passed
+
+🧪 Running tests/subdir-tests.bats  
+✅ subdir-tests passed
+
+🧪 Running tests/test-new-features.bats
+✅ test-new-features passed
+
+==================================================
+📊 Test Results Summary:
+  Total test files: 3
+  Passed: 3
+  All tests passed! 🎉
 ```
 
 ## Running with gh act (Local GitHub Actions)
@@ -32,9 +65,12 @@ gh act -j test
 
 ## Test Structure
 
-- **`tests.bats`** - All tests in one file using BATS framework
-- **`Dockerfile`** - Minimal Alpine Linux container with zsh + git
+- **`tests.bats`** - Main test suite (20 tests) using BATS framework
+- **`subdir-tests.bats`** - Nested project structure tests (5 tests)
+- **`test-new-features.bats`** - New feature tests (3 tests)
+- **`run-all-tests.sh`** - Script to run all test files individually
 - **`run-tests.sh`** - Local test runner with multiple execution modes
+- **`Dockerfile`** - Minimal Alpine Linux container with zsh + git
 - **`test-env-setup.sh`** - Helper script for manual test environment setup
 
 ## What Gets Tested
