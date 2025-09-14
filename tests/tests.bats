@@ -51,7 +51,7 @@ teardown() {
 @test "w --version shows version" {
     run w --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Worktree Wrangler v"* ]]
+    [[ "$output" == *v1.5.0* ]]
 }
 
 @test "w without args shows usage" {

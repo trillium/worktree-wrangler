@@ -57,6 +57,8 @@ install_bats() {
 run_tests_native() {
     echo -e "${BLUE}🏃 Running tests natively${NC}"
     
+    cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
     if ! check_bats; then
         echo -e "${YELLOW}Installing BATS...${NC}"
         install_bats
@@ -112,7 +114,8 @@ run_quick_test() {
     echo -e "${BLUE}⚡ Running quick smoke test${NC}"
     
     # Just test that the script loads and shows version
-    cd ..
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    cd "$SCRIPT_DIR/.."
     if zsh -c "source worktree-wrangler.zsh; w --version" >/dev/null 2>&1; then
         echo -e "${GREEN}✅ Quick test passed - script loads correctly${NC}"
         return 0
