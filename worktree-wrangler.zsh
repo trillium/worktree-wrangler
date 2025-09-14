@@ -1,10 +1,10 @@
 #!/usr/bin/env zsh
-# Worktree Wrangler - Multi-project Git worktree manager
-# Version: 1.5.0
+# Worktree Wrangler T - Multi-project Git worktree manager
+# Version: 1.6.0
 
 setopt extendedglob
 
-# Main worktree wrangler function
+# Main worktree wrangler T function
 w() {
     # Color definitions for beautiful output
     local -A COLORS
@@ -19,7 +19,7 @@ w() {
     COLORS[DIM]='\033[2m'
     COLORS[NC]='\033[0m'  # No Color
 
-    local VERSION="1.5.0"
+    local VERSION="1.6.0"
     local config_file="$HOME/.local/share/worktree-wrangler/config"
     
     # Load configuration
@@ -157,6 +157,46 @@ w() {
         fi
     }
 
+    # Resolve main repository path from a worktree path
+    resolve_main_repo_from_worktree() {
+        local worktree_path="$1"
+        local git_common_dir
+        git_common_dir=$(cd "$worktree_path" && git rev-parse --git-common-dir 2>/dev/null)
+        if [[ -z "$git_common_dir" ]]; then
+            echo ""
+            return 1
+        fi
+        echo "$(dirname "$git_common_dir")"
+    }
+
+    # Find worktree path by checking all possible locations
+    find_worktree_path() {
+        local project="$1"
+        local worktree="$2"
+
+        # Check core legacy location first
+        if [[ "$project" == "core" && -d "$projects_dir/core-wts/$worktree" ]]; then
+            echo "$projects_dir/core-wts/$worktree"
+            return 0
+        fi
+
+        # Check new worktrees location
+        if [[ -d "$worktrees_dir/$project/$worktree" ]]; then
+            echo "$worktrees_dir/$project/$worktree"
+            return 0
+        fi
+
+        # Check nested project structure location
+        if [[ -d "$projects_dir/$project/$worktree" ]]; then
+            echo "$projects_dir/$project/$worktree"
+            return 0
+        fi
+
+        # Not found
+        echo ""
+        return 1
+    }
+
     # Handle special flags
     if [[ "$1" == "--list" ]]; then
         echo -e "${COLORS[CYAN]}${COLORS[BOLD]}🌳 === All Worktrees ===${COLORS[NC]}"
@@ -219,6 +259,38 @@ w() {
                 found_any=true
             done
         fi
+        
+        # Also check nested project structure locations
+        for project_dir in "$projects_dir"/*(/N); do
+            if [[ ! -d "$project_dir/.git" ]]; then
+                continue
+            fi
+            
+            local project_name=$(basename "$project_dir")
+            local nested_found=false
+            
+            # Check for worktrees in nested structure: $projects_dir/$project_name/$worktree_name
+            for wt_dir in "$project_dir"/*(/N); do
+                # Skip the main project directory (it has .git)
+                if [[ -d "$wt_dir/.git" ]]; then
+                    continue
+                fi
+                
+                local wt_name=$(basename "$wt_dir")
+                local wt_info=$(get_worktree_info "$wt_dir")
+                if [[ -n "$wt_info" ]]; then
+                    if [[ "$nested_found" == "false" ]]; then
+                        echo -e "\\n${COLORS[PURPLE]}${COLORS[BOLD]}📁 [$project_name]${COLORS[NC]} ${COLORS[DIM]}(nested structure)${COLORS[NC]}"
+                        nested_found=true
+                    fi
+                    local branch=$(echo "$wt_info" | cut -d'|' -f1)
+                    local git_status=$(echo "$wt_info" | cut -d'|' -f2)
+                    local activity=$(echo "$wt_info" | cut -d'|' -f3)
+                    printf "  ${COLORS[GREEN]}•${COLORS[NC]} %-20s ${COLORS[CYAN]}(%s)${COLORS[NC]} %s ${COLORS[DIM]}- %s${COLORS[NC]}\\n" "$wt_name" "$branch" "$git_status" "$activity"
+                    found_any=true
+                fi
+            done
+        done
         
         if [[ "$found_any" == "false" ]]; then
             echo -e "\\n${COLORS[YELLOW]}🌱 No worktrees found.${COLORS[NC]}"
@@ -379,20 +451,29 @@ w() {
             echo "Usage: w --rm <project> <worktree>"
             return 1
         fi
-        # Check both locations for core
-        if [[ "$project" == "core" && -d "$projects_dir/core-wts/$worktree" ]]; then
-            local wt_path="$projects_dir/core-wts/$worktree"
-            run_archive_script "$project" "$worktree" "$wt_path"
-            (cd "$projects_dir/$project" && git worktree remove "$wt_path")
-        else
-            local wt_path="$worktrees_dir/$project/$worktree"
-            if [[ ! -d "$wt_path" ]]; then
-                echo "Worktree not found: $wt_path"
-                return 1
-            fi
-            run_archive_script "$project" "$worktree" "$wt_path"
-            (cd "$projects_dir/$project" && git worktree remove "$wt_path")
+        
+        # Determine worktree path
+        local wt_path
+        wt_path="$(find_worktree_path "$project" "$worktree")"
+        if [[ -z "$wt_path" ]]; then
+            echo "Worktree not found: $project/$worktree"
+            echo "Checked locations:"
+            echo "  • $projects_dir/core-wts/$worktree (legacy core)"
+            echo "  • $worktrees_dir/$project/$worktree (new location)"
+            echo "  • $projects_dir/$project/$worktree (nested structure)"
+            return 1
         fi
+        
+        # Find the main repository root from the worktree
+        local project_root
+        project_root="$(resolve_main_repo_from_worktree "$wt_path")"
+        if [[ -z "$project_root" ]]; then
+            echo "Could not determine main repository for worktree: $wt_path"
+            return 1
+        fi
+        
+        run_archive_script "$project" "$worktree" "$wt_path"
+        (cd "$project_root" && git worktree remove "$wt_path")
         return $?
     elif [[ "$1" == "--cleanup" ]]; then
         # Check if gh CLI is available
@@ -419,6 +500,14 @@ w() {
             local worktree_name="$2"
             local worktree_path="$3"
             
+            # Find the main repository root from the worktree
+            local project_root
+            project_root="$(resolve_main_repo_from_worktree "$worktree_path")"
+            if [[ -z "$project_root" ]]; then
+                echo "  ⚠️  Skipping: Could not determine main repository for $worktree_path"
+                return 1
+            fi
+            
             echo "Checking worktree: $project/$worktree_name"
             total_checked=$((total_checked + 1))
             
@@ -441,7 +530,7 @@ w() {
             
             # Method 1: Try different branch formats
             for branch_format in "$branch_name" "origin/$branch_name" "${branch_name#*/}"; do
-                pr_info=$(cd "$projects_dir/$project" && gh pr list --head "$branch_format" --json number,state,headRefName 2>/dev/null)
+                pr_info=$(cd "$project_root" && gh pr list --head "$branch_format" --json number,state,headRefName 2>/dev/null)
                 if [[ -n "$pr_info" && "$pr_info" != "[]" ]]; then
                     break
                 fi
@@ -454,7 +543,7 @@ w() {
             
             # Method 3: List all PRs and filter (most flexible)
             if [[ -z "$pr_info" || "$pr_info" == "[]" ]]; then
-                local all_prs=$(cd "$projects_dir/$project" && gh pr list --json number,state,headRefName 2>/dev/null)
+                local all_prs=$(cd "$project_root" && gh pr list --json number,state,headRefName 2>/dev/null)
                 if [[ -n "$all_prs" && "$all_prs" != "[]" ]]; then
                     # Try exact match first
                     pr_info=$(echo "$all_prs" | jq --arg branch "$branch_name" '.[] | select(.headRefName == $branch)')
@@ -477,7 +566,7 @@ w() {
             if [[ -z "$pr_info" || "$pr_info" == "[]" ]]; then
                 local current_commit=$(cd "$worktree_path" && git rev-parse HEAD 2>/dev/null)
                 if [[ -n "$current_commit" ]]; then
-                    pr_info=$(cd "$projects_dir/$project" && gh pr list --search "sha:$current_commit" --json number,state,headRefName 2>/dev/null)
+                    pr_info=$(cd "$project_root" && gh pr list --search "sha:$current_commit" --json number,state,headRefName 2>/dev/null)
                 fi
             fi
             
@@ -515,7 +604,7 @@ w() {
             # All checks passed - remove the worktree
             echo "  ✅ Removing worktree (PR merged, no unpushed commits)"
             run_archive_script "$project" "$worktree_name" "$worktree_path"
-            if (cd "$projects_dir/$project" && git worktree remove "$worktree_path" 2>/dev/null); then
+            if (cd "$project_root" && git worktree remove "$worktree_path" 2>/dev/null); then
                 cleaned_count=$((cleaned_count + 1))
                 echo "  ✅ Successfully removed"
             else
@@ -535,6 +624,18 @@ w() {
             # Check new worktrees location
             if [[ -d "$worktrees_dir/$project_name" ]]; then
                 for wt_dir in "$worktrees_dir/$project_name"/*(/N); do
+                    local wt_name=$(basename "$wt_dir")
+                    cleanup_worktree "$project_name" "$wt_name" "$wt_dir"
+                done
+            fi
+
+            # Check nested project structure location
+            if [[ -d "$projects_dir/$project_name" ]]; then
+                for wt_dir in "$projects_dir/$project_name"/*(/N); do
+                    # Skip the main project directory (it has .git)
+                    if [[ -d "$wt_dir/.git" ]]; then
+                        continue
+                    fi
                     local wt_name=$(basename "$wt_dir")
                     cleanup_worktree "$project_name" "$wt_name" "$wt_dir"
                 done
@@ -578,28 +679,19 @@ w() {
         if [[ -n "$target_project" && -n "$target_worktree" ]]; then
             # Specific worktree provided - use same logic as --rm command
             
-            # Check if project exists
-            if [[ ! -d "$projects_dir/$target_project" ]]; then
-                echo -e "${COLORS[RED]}❌ Project not found: $projects_dir/$target_project${COLORS[NC]}"
-                echo ""
-                echo "Available projects in $projects_dir:"
-                for dir in "$projects_dir"/*(/N); do
-                    if [[ -d "$dir/.git" ]]; then
-                        echo "  • $(basename "$dir")"
-                    fi
-                done
+            # Determine worktree path
+            local wt_path
+            wt_path="$(find_worktree_path "$target_project" "$target_worktree")"
+            if [[ -z "$wt_path" ]]; then
+                echo -e "${COLORS[RED]}❌ Worktree not found: $target_project/$target_worktree${COLORS[NC]}"
                 return 1
             fi
             
-            project_path="$projects_dir/$target_project"
-            
-            # Check both locations for core
-            if [[ "$target_project" == "core" && -d "$projects_dir/core-wts/$target_worktree" ]]; then
-                wt_path="$projects_dir/core-wts/$target_worktree"
-            elif [[ -d "$worktrees_dir/$target_project/$target_worktree" ]]; then
-                wt_path="$worktrees_dir/$target_project/$target_worktree"
-            else
-                echo -e "${COLORS[RED]}❌ Worktree not found: $target_project/$target_worktree${COLORS[NC]}"
+            # Find the main repository root from the worktree
+            local project_path
+            project_path="$(resolve_main_repo_from_worktree "$wt_path")"
+            if [[ -z "$project_path" ]]; then
+                echo -e "${COLORS[RED]}❌ Could not determine main repository for worktree: $wt_path${COLORS[NC]}"
                 return 1
             fi
         else
@@ -800,11 +892,12 @@ w() {
         
         return 0
     elif [[ "$1" == "--help" ]]; then
-        echo -e "${COLORS[CYAN]}${COLORS[BOLD]}🚀 Worktree Wrangler${COLORS[NC]} ${COLORS[GREEN]}v$VERSION${COLORS[NC]}"
+        echo -e "${COLORS[CYAN]}${COLORS[BOLD]}🚀 Worktree Wrangler T${COLORS[NC]} ${COLORS[GREEN]}v$VERSION${COLORS[NC]}"
         echo -e "${COLORS[DIM]}Multi-project Git worktree manager for zsh${COLORS[NC]}"
         echo ""
         echo -e "${COLORS[YELLOW]}${COLORS[BOLD]}USAGE:${COLORS[NC]}"
         echo -e "  ${COLORS[GREEN]}w <project> <worktree> [command...]${COLORS[NC]}     Switch to/create worktree"
+        echo -e "  ${COLORS[GREEN]}w <project> - [command...]${COLORS[NC]}             Operate on base repository"
         echo -e "  ${COLORS[GREEN]}w --list${COLORS[NC]}                               List all worktrees"
         echo -e "  ${COLORS[GREEN]}w --status [project]${COLORS[NC]}                   Show git status across worktrees"
         echo -e "  ${COLORS[GREEN]}w --recent${COLORS[NC]}                             Show recently used worktrees"
@@ -837,6 +930,12 @@ w() {
         echo -e "  ${COLORS[DIM]}# Run command in worktree${COLORS[NC]}"
         echo -e "  ${COLORS[WHITE]}w myproject feature-auth npm test${COLORS[NC]}"
         echo ""
+        echo -e "  ${COLORS[DIM]}# Change to base repository directory${COLORS[NC]}"
+        echo -e "  ${COLORS[WHITE]}w myproject -${COLORS[NC]}"
+        echo ""
+        echo -e "  ${COLORS[DIM]}# Run command in base repository${COLORS[NC]}"
+        echo -e "  ${COLORS[WHITE]}w myproject - git status${COLORS[NC]}"
+        echo ""
         echo -e "  ${COLORS[DIM]}# Configure per-repository automation scripts${COLORS[NC]}"
         echo -e "  ${COLORS[WHITE]}w myproject --setup_script ~/scripts/setup-worktree.sh${COLORS[NC]}"
         echo -e "  ${COLORS[WHITE]}w myproject --archive_script ~/scripts/archive-worktree.sh${COLORS[NC]}"
@@ -849,10 +948,10 @@ w() {
         echo -e "${COLORS[DIM]}For detailed documentation: https://github.com/jamesjarvis/worktree-wrangler${COLORS[NC]}"
         return 0
     elif [[ "$1" == "--version" ]]; then
-        echo -e "${COLORS[PURPLE]}${COLORS[BOLD]}🚀 Worktree Wrangler${COLORS[NC]} ${COLORS[GREEN]}v$VERSION${COLORS[NC]}"
+        echo -e "${COLORS[PURPLE]}${COLORS[BOLD]}🚀 Worktree Wrangler T${COLORS[NC]} ${COLORS[GREEN]}v$VERSION${COLORS[NC]}"
         return 0
     elif [[ "$1" == "--update" ]]; then
-        echo "=== Updating Worktree Wrangler ==="
+        echo "=== Updating Worktree Wrangler T ==="
         
         # Check for required tools
         if ! command -v curl &> /dev/null; then
@@ -1036,6 +1135,40 @@ w() {
         return 0
     fi
     
+    # Check for base repo operations: w <repo> - [command]
+    if [[ "$2" == "-" ]]; then
+        local project="$1"
+        shift 2
+        local command=("$@")
+        
+        # Resolve project root (flat or nested)
+        local project_root="$(resolve_project_root "$project")"
+        if [[ -z "$project_root" ]]; then
+            echo "Project not found: $projects_dir/$project or $projects_dir/$project/$project"
+            echo ""
+            echo "Available projects in $projects_dir:"
+            for proj in $(list_valid_projects); do
+                echo "  • $proj"
+            done
+            return 1
+        fi
+        
+        # Execute based on whether command is provided
+        if [[ ${#command[@]} -eq 0 ]]; then
+            # No command - change to base repo directory
+            cd "$project_root"
+        else
+            # Command provided - run it in base repo directory
+            local old_pwd="$PWD"
+            cd "$project_root"
+            eval "${command[@]}"
+            local exit_code=$?
+            cd "$old_pwd"
+            return $exit_code
+        fi
+        return 0
+    fi
+    
     # Check for per-repository script commands
     if [[ "$2" == "--setup_script" ]]; then
         local repo_name="$1"
@@ -1173,6 +1306,7 @@ w() {
     
     if [[ -z "$project" || -z "$worktree" ]]; then
         echo "Usage: w <project> <worktree> [command...]"
+        echo "       w <project> - [command...]"
         echo "       w --list"
         echo "       w --status [project]"
         echo "       w --recent"
@@ -1185,6 +1319,13 @@ w() {
         echo "       w <repo> --setup_script <path>"
         echo "       w <repo> --archive_script <path>"
         echo "       w --help"
+        return 1
+    fi
+    
+    # Prevent creating worktree with invalid name
+    if [[ "$worktree" == "-" ]]; then
+        echo "Invalid worktree name: -"
+        echo "Use 'w <project> - [command...]' to operate on the base repository"
         return 1
     fi
     
