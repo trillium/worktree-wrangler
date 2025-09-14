@@ -2,21 +2,23 @@
 # Worktree Wrangler - Multi-project Git worktree manager
 # Version: 1.5.0
 
-# Color definitions for beautiful output
-local -A COLORS
-COLORS[RED]='\033[0;31m'
-COLORS[GREEN]='\033[0;32m'
-COLORS[YELLOW]='\033[1;33m'
-COLORS[BLUE]='\033[0;34m'
-COLORS[PURPLE]='\033[0;35m'
-COLORS[CYAN]='\033[0;36m'
-COLORS[WHITE]='\033[1;37m'
-COLORS[BOLD]='\033[1m'
-COLORS[DIM]='\033[2m'
-COLORS[NC]='\033[0m'  # No Color
+setopt extendedglob
 
 # Main worktree wrangler function
 w() {
+    # Color definitions for beautiful output
+    local -A COLORS
+    COLORS[RED]='\033[0;31m'
+    COLORS[GREEN]='\033[0;32m'
+    COLORS[YELLOW]='\033[1;33m'
+    COLORS[BLUE]='\033[0;34m'
+    COLORS[PURPLE]='\033[0;35m'
+    COLORS[CYAN]='\033[0;36m'
+    COLORS[WHITE]='\033[1;37m'
+    COLORS[BOLD]='\033[1m'
+    COLORS[DIM]='\033[2m'
+    COLORS[NC]='\033[0m'  # No Color
+
     local VERSION="1.5.0"
     local config_file="$HOME/.local/share/worktree-wrangler/config"
     
@@ -40,6 +42,18 @@ w() {
             cat "$repo_script_file"
         fi
     }
+
+    # Helper: list all valid projects (flat or nested)
+    list_valid_projects() {
+        for dir in "$projects_dir"/*(/N); do
+            if [[ -d "$dir/.git" ]]; then
+                echo "$(basename "$dir")"
+            elif [[ -d "$dir" && -d "$dir/$(basename "$dir")/.git" ]]; then
+                echo "$(basename "$dir")"
+            fi
+        done
+    }
+
     local worktrees_dir="$projects_dir/worktrees"
     
     # Helper function to run archive script before worktree removal
@@ -49,12 +63,13 @@ w() {
         local worktree_path="$3"
         
         local archive_script=$(get_repo_script "$project" "archive_script")
+        local project_root="$(resolve_project_root "$project")"
         if [[ -n "$archive_script" && -f "$archive_script" && -x "$archive_script" ]]; then
             echo -e "${COLORS[CYAN]}📦 Running archive script...${COLORS[NC]}"
             
             # Get default branch name for the project
             local default_branch
-            default_branch=$(cd "$projects_dir/$project" && git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+            default_branch=$(cd "$project_root" && git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
             if [[ -z "$default_branch" ]]; then
                 default_branch="main"  # fallback
             fi
@@ -64,10 +79,10 @@ w() {
             (
                 export W_WORKSPACE_NAME="$worktree_name"
                 export W_WORKSPACE_PATH="$worktree_path"
-                export W_ROOT_PATH="$projects_dir/$project"
+                export W_ROOT_PATH="$project_root"
                 export W_DEFAULT_BRANCH="$default_branch"
                 
-                cd "$worktree_path" 2>/dev/null || cd "$projects_dir/$project"
+                cd "$worktree_path" 2>/dev/null || cd "$project_root"
                 "$archive_script"
             ) || archive_exit_code=$?
             
@@ -126,6 +141,20 @@ w() {
         fi
         
         echo "$branch_name|$status_info|$last_activity"
+    }
+
+    # Helper: resolve project root (flat or nested)
+    resolve_project_root() {
+        local project_name="$1"
+        local flat_path="$projects_dir/$project_name"
+        local nested_path="$projects_dir/$project_name/$project_name"
+        if [[ -d "$flat_path/.git" ]]; then
+            echo "$flat_path"
+        elif [[ -d "$nested_path/.git" ]]; then
+            echo "$nested_path"
+        else
+            echo ""
+        fi
     }
 
     # Handle special flags
@@ -1174,15 +1203,14 @@ w() {
         return 1
     fi
     
-    # Check if project exists
-    if [[ ! -d "$projects_dir/$project" ]]; then
-        echo "Project not found: $projects_dir/$project"
+    # Resolve project root (flat or nested)
+    local project_root="$(resolve_project_root "$project")"
+    if [[ -z "$project_root" ]]; then
+        echo "Project not found: $projects_dir/$project or $projects_dir/$project/$project"
         echo ""
         echo "Available projects in $projects_dir:"
-        for dir in "$projects_dir"/*(/N); do
-            if [[ -d "$dir/.git" ]]; then
-                echo "  • $(basename "$dir")"
-            fi
+        for proj in $(list_valid_projects); do
+            echo "  • $proj"
         done
         return 1
     fi
@@ -1202,6 +1230,7 @@ w() {
             wt_path="$worktrees_dir/$project/$worktree"
         fi
     fi
+    # Use project_root for all git operations
     
     # If worktree doesn't exist, create it
     if [[ -z "$wt_path" || ! -d "$wt_path" ]]; then
@@ -1215,7 +1244,7 @@ w() {
         
         # Create the worktree in new location
         wt_path="$worktrees_dir/$project/$worktree"
-        (cd "$projects_dir/$project" && git worktree add "$wt_path" -b "$branch_name") || {
+        (cd "$project_root" && git worktree add "$wt_path" -b "$branch_name") || {
             echo -e "${COLORS[RED]}❌ Failed to create worktree${COLORS[NC]}"
             return 1
         }
@@ -1228,7 +1257,7 @@ w() {
             
             # Get default branch name for the project
             local default_branch
-            default_branch=$(cd "$projects_dir/$project" && git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+            default_branch=$(cd "$project_root" && git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
             if [[ -z "$default_branch" ]]; then
                 default_branch="main"  # fallback
             fi
@@ -1238,7 +1267,7 @@ w() {
             (
                 export W_WORKSPACE_NAME="$worktree"
                 export W_WORKSPACE_PATH="$wt_path"
-                export W_ROOT_PATH="$projects_dir/$project"
+                export W_ROOT_PATH="$project_root"
                 export W_DEFAULT_BRANCH="$default_branch"
                 
                 cd "$wt_path"
@@ -1295,4 +1324,5 @@ w() {
         cd "$old_pwd"
         return $exit_code
     fi
+# END w function
 }
