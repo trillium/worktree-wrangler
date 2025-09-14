@@ -37,9 +37,9 @@ run_test_file() {
 
 # Run all main test files
 test_files=(
-    "tests/tests.bats"
-    "tests/subdir-tests.bats"
-    "tests/test-new-features.bats"
+    "tests.bats"
+    "subdir-tests.bats"
+    "test-new-features.bats"
 )
 
 for test_file in "${test_files[@]}"; do
