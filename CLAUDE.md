@@ -1,6 +1,6 @@
-# Claude Instructions for Worktree Wrangler
+# Claude Instructions for Worktree Wrangler T
 
-This file contains instructions for Claude (Anthropic's AI assistant) when working on the Worktree Wrangler repository. Follow these guidelines to maintain consistency and quality.
+This file contains instructions for Claude (Anthropic's AI assistant) when working on the Worktree Wrangler T repository. Follow these guidelines to maintain consistency and quality.
 
 ## Git Commit and Release Management
 

@@ -43,4 +43,4 @@ The tool now supports two canonical project layouts for worktree management:
 ---
 
 **Summary:**  
-Worktree Wrangler now robustly supports both flat and `{project}/{project}` nested git repo layouts, with strict enforcement of naming rules for nested structures. This improves flexibility for users who prefer to keep their git root in a project-named subdirectory, while maintaining clarity and reliability.
+Worktree Wrangler T now robustly supports both flat and `{project}/{project}` nested git repo layouts, with strict enforcement of naming rules for nested structures. This improves flexibility for users who prefer to keep their git root in a project-named subdirectory, while maintaining clarity and reliability.

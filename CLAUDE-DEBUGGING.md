@@ -1,6 +1,6 @@
-# Debugging Guide for Worktree Wrangler
+# Debugging Guide for Worktree Wrangler T
 
-This document covers common debugging patterns, issues, and solutions encountered while maintaining the Worktree Wrangler codebase.
+This document covers common debugging patterns, issues, and solutions encountered while maintaining the Worktree Wrangler T codebase.
 
 ## Common Bug Patterns
 

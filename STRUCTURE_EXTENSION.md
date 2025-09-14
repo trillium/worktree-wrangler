@@ -2,25 +2,29 @@
 
 ## Overview
 
-The Worktree Wrangler tool has been extended to support nested project structures in addition to the existing flat structure. This allows users who organize their repositories with a project-named subdirectory (e.g., `code/massage/massage/.git`) to use the tool seamlessly.
+The Worktree Wrangler T tool has been extended to support nested project structures in addition to the existing flat structure. This allows users who organize their repositories with a project-named subdirectory (e.g., `code/massage/massage/.git`) to use the tool seamlessly.
 
 ## Supported Structures
 
 ### Flat Structure (existing)
+
 ```
 projects/
 └── {project}/
     └── .git/
 ```
+
 Example: `~/code/massage/.git`
 
 ### Nested Structure (new)
+
 ```
 projects/
 └── {project}/
     └── {project}/
         └── .git/
 ```
+
 Example: `~/code/massage/massage/.git`
 
 **Important:** In nested structures, the inner directory must match the project name exactly.
@@ -30,11 +34,13 @@ Example: `~/code/massage/massage/.git`
 ### Core Changes
 
 1. **Project Root Detection Function**
+
    - Added `resolve_project_root()` function in `worktree-wrangler.zsh`
    - Checks for `.git` in both flat (`$projects_dir/$project/.git`) and nested (`$projects_dir/$project/$project/.git`) locations
    - Returns the correct git repository path or empty string if not found
 
 2. **Updated Project Listing**
+
    - Modified `list_valid_projects()` to scan for both structure types
    - Ensures all valid projects are discovered regardless of structure
 
