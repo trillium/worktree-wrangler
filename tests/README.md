@@ -1,4 +1,4 @@
-# Worktree Wrangler Test Suite
+# Worktree Wrangler T Test Suite
 
 Simple, fast test suite for worktree-wrangler that runs in isolated environments.
 

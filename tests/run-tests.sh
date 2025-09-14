@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Local test runner for Worktree Wrangler
+# Local test runner for Worktree Wrangler T
 # Supports both native execution and Docker
 
 set -e
@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 DOCKER_IMAGE="worktree-wrangler-test"
 USE_DOCKER=${USE_DOCKER:-true}
 
-echo -e "${BLUE}🧪 Worktree Wrangler Test Suite${NC}"
+echo -e "${BLUE}🧪 Worktree Wrangler T Test Suite${NC}"
 echo "=================================="
 
 # Check if running with gh act

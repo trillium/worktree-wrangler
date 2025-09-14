@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Worktree Wrangler Test Suite
+# Worktree Wrangler T Test Suite
 # Tests all core functionality in isolated environment
 
 # Setup and teardown
@@ -51,7 +51,7 @@ teardown() {
 @test "w --version shows version" {
     run w --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *v1.5.0* ]]
+    [[ "$output" == *v1.6.0* ]]
 }
 
 @test "w without args shows usage" {
