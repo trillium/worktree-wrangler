@@ -392,10 +392,10 @@ w() {
         
         return 0
     elif [[ "$1" == "--version" ]]; then
-        echo "Worktree Wrangler v$VERSION"
+        echo "Worktree Wrangler T v$VERSION"
         return 0
     elif [[ "$1" == "--update" ]]; then
-        echo "=== Updating Worktree Wrangler ==="
+        echo "=== Updating Worktree Wrangler T ==="
         
         # Check for required tools
         if ! command -v curl &> /dev/null; then
@@ -482,9 +482,14 @@ w() {
     shift 2
     local command=("$@")
     
-    # Check if project exists
-    if [[ ! -d "$projects_dir/$project" ]]; then
-        echo "Project not found: $projects_dir/$project"
+    # Resolve project root (flat or nested)
+    local project_root=""
+    if [[ -d "$projects_dir/$project/.git" ]]; then
+        project_root="$projects_dir/$project"
+    elif [[ -d "$projects_dir/$project/$project/.git" ]]; then
+        project_root="$projects_dir/$project/$project"
+    else
+        echo "Project not found: $projects_dir/$project or $projects_dir/$project/$project"
         return 1
     fi
     
@@ -503,6 +508,7 @@ w() {
             wt_path="$worktrees_dir/$project/$worktree"
         fi
     fi
+    # Use project_root for all git operations
     
     # If worktree doesn't exist, create it
     if [[ -z "$wt_path" || ! -d "$wt_path" ]]; then
@@ -516,7 +522,7 @@ w() {
         
         # Create the worktree in new location
         wt_path="$worktrees_dir/$project/$worktree"
-        (cd "$projects_dir/$project" && git worktree add "$wt_path" -b "$branch_name") || {
+        (cd "$project_root" && git worktree add "$wt_path" -b "$branch_name") || {
             echo "Failed to create worktree"
             return 1
         }
@@ -537,10 +543,10 @@ w() {
     fi
 }
 
-# Setup completion if not already done
-if [[ ! -f ~/.zsh/completions/_w ]]; then
-    mkdir -p ~/.zsh/completions
-    cat > ~/.zsh/completions/_w << 'EOF'
+    # Setup completion if not already done
+    if [[ ! -f ~/.zsh/completions/_w ]]; then
+        mkdir -p ~/.zsh/completions
+        cat > ~/.zsh/completions/_w << 'EOF'
 #compdef w
 
 _w() {
@@ -570,16 +576,19 @@ _w() {
                 return 0
             fi
             
-            # Get list of projects (directories in ~/projects that are git repos)
+            # Get list of projects (flat or nested)
             local -a projects
             for dir in $projects_dir/*(N/); do
                 if [[ -d "$dir/.git" ]]; then
+                    projects+=(${dir:t})
+                elif [[ -d "$dir" && -d "$dir/${dir:t}/.git" ]]; then
                     projects+=(${dir:t})
                 fi
             done
             
             _describe -t projects 'project' projects && return 0
             ;;
+
             
         worktree)
             local project="${words[2]}"

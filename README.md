@@ -1,4 +1,4 @@
-# Worktree Wrangler
+# Worktree Wrangler T
 
 Multi-project Git worktree manager for zsh with Claude Code integration.
 
@@ -255,7 +255,7 @@ Reinstall: `curl -sSL https://raw.githubusercontent.com/jamesjarvis/worktree-wra
 ```bash
 rm -rf ~/.local/share/worktree-wrangler
 rm -f ~/.local/share/zsh/site-functions/_w
-# Remove the "Worktree Wrangler - Zsh Integration" section from ~/.zshrc
+# Remove the "Worktree Wrangler T - Zsh Integration" section from ~/.zshrc
 ```
 
 ## Credits

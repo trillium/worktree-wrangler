@@ -1,7 +1,7 @@
 #!/bin/bash
-# Worktree Wrangler Installation Script
+# Worktree Wrangler T Installation Script
 # 
-# This script installs Worktree Wrangler to your ~/.zshrc
+# This script installs Worktree Wrangler T to your ~/.zshrc
 # Usage: curl -sSL https://raw.githubusercontent.com/jamesjarvis/worktree-wrangler/master/install.sh | bash
 
 set -e
@@ -42,7 +42,7 @@ if ! command -v curl &> /dev/null; then
     exit 1
 fi
 
-print_status "🌳 Installing Worktree Wrangler..."
+print_status "🌳 Installing Worktree Wrangler T..."
 
 # Create backup of .zshrc if it exists
 if [[ -f ~/.zshrc ]]; then
@@ -100,15 +100,15 @@ mv "$TEMP_COMPLETION" "$COMPLETION_DIR/_w"
 chmod +x "$INSTALL_DIR/worktree-wrangler.zsh"
 
 # Check if already integrated in .zshrc
-if grep -q "Worktree Wrangler - Zsh Integration" ~/.zshrc 2>/dev/null; then
-    print_warning "Worktree Wrangler appears to already be integrated in .zshrc"
+if grep -q "Worktree Wrangler T - Zsh Integration" ~/.zshrc 2>/dev/null; then
+    print_warning "Worktree Wrangler T appears to already be integrated in .zshrc"
     print_status "Skipping .zshrc integration (already present)"
 else
     # Add integration to .zshrc
     print_status "Adding integration to .zshrc..."
     echo "" >> ~/.zshrc
     cat "$TEMP_INTEGRATION" >> ~/.zshrc
-    print_success "Added Worktree Wrangler integration to .zshrc"
+    print_success "Added Worktree Wrangler T integration to .zshrc"
 fi
 
 # Clean up

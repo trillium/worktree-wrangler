@@ -1,4 +1,4 @@
-# Worktree Wrangler - Zsh Integration
+# Worktree Wrangler T - Zsh Integration
 # This file should be sourced from your ~/.zshrc
 
 # Set up completion path
