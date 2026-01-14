@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 # Worktree Wrangler T - Multi-project Git worktree manager
-# Version: 1.6.0
+# Version: 1.7.0
 
 setopt extendedglob
 
@@ -19,7 +19,7 @@ w() {
     COLORS[DIM]='\033[2m'
     COLORS[NC]='\033[0m'  # No Color
 
-    local VERSION="1.6.0"
+    local VERSION="1.7.0"
     local config_file="$HOME/.local/share/worktree-wrangler/config"
     
     # Load configuration
@@ -447,11 +447,29 @@ w() {
         shift
         local project="$1"
         local worktree="$2"
+        shift 2
+
+        # Parse optional --force or -f flag
+        local force_flag=""
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --force|-f)
+                    force_flag="--force"
+                    shift
+                    ;;
+                *)
+                    echo "Unknown option: $1"
+                    echo "Usage: w --rm <project> <worktree> [-f|--force]"
+                    return 1
+                    ;;
+            esac
+        done
+
         if [[ -z "$project" || -z "$worktree" ]]; then
-            echo "Usage: w --rm <project> <worktree>"
+            echo "Usage: w --rm <project> <worktree> [-f|--force]"
             return 1
         fi
-        
+
         # Determine worktree path
         local wt_path
         wt_path="$(find_worktree_path "$project" "$worktree")"
@@ -463,7 +481,7 @@ w() {
             echo "  • $projects_dir/$project/$worktree (nested structure)"
             return 1
         fi
-        
+
         # Find the main repository root from the worktree
         local project_root
         project_root="$(resolve_main_repo_from_worktree "$wt_path")"
@@ -471,10 +489,36 @@ w() {
             echo "Could not determine main repository for worktree: $wt_path"
             return 1
         fi
-        
+
         run_archive_script "$project" "$worktree" "$wt_path"
-        (cd "$project_root" && git worktree remove "$wt_path")
-        return $?
+
+        # Try to remove the worktree
+        local git_error
+        git_error=$(cd "$project_root" && git worktree remove $force_flag "$wt_path" 2>&1)
+        local exit_code=$?
+
+        if [[ $exit_code -ne 0 ]]; then
+            # Check if error is about modified/untracked files
+            if [[ "$git_error" == *"contains modified or untracked files"* && -z "$force_flag" ]]; then
+                echo -e "${COLORS[RED]}Error: Worktree contains modifications${COLORS[NC]}"
+                echo ""
+
+                # Show what files are modified/untracked
+                echo -e "${COLORS[YELLOW]}Modified or untracked files:${COLORS[NC]}"
+                (cd "$wt_path" && git status --short 2>/dev/null)
+                echo ""
+
+                echo -e "${COLORS[YELLOW]}Use --force to remove anyway:${COLORS[NC]}"
+                echo -e "  ${COLORS[GREEN]}w --rm $project $worktree --force${COLORS[NC]}"
+                return 1
+            else
+                # Other error, just display it
+                echo "$git_error"
+                return $exit_code
+            fi
+        fi
+
+        return 0
     elif [[ "$1" == "--cleanup" ]]; then
         # Check if gh CLI is available
         if ! command -v gh &> /dev/null; then
@@ -901,7 +945,7 @@ w() {
         echo -e "  ${COLORS[GREEN]}w --list${COLORS[NC]}                               List all worktrees"
         echo -e "  ${COLORS[GREEN]}w --status [project]${COLORS[NC]}                   Show git status across worktrees"
         echo -e "  ${COLORS[GREEN]}w --recent${COLORS[NC]}                             Show recently used worktrees"
-        echo -e "  ${COLORS[GREEN]}w --rm <project> <worktree>${COLORS[NC]}            Remove a worktree"
+        echo -e "  ${COLORS[GREEN]}w --rm <project> <worktree> [-f|--force]${COLORS[NC]}  Remove a worktree"
         echo -e "  ${COLORS[GREEN]}w --cleanup${COLORS[NC]}                            Clean up merged PR worktrees"
         echo -e "  ${COLORS[GREEN]}w --copy-pr-link [project] [worktree]${COLORS[NC]}  Copy PR link with emoji"
         echo ""
@@ -1310,7 +1354,7 @@ w() {
         echo "       w --list"
         echo "       w --status [project]"
         echo "       w --recent"
-        echo "       w --rm <project> <worktree>"
+        echo "       w --rm <project> <worktree> [-f|--force]"
         echo "       w --cleanup"
         echo "       w --copy-pr-link [project] [worktree]"
         echo "       w --version"

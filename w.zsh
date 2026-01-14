@@ -1,6 +1,6 @@
 #!/usr/bin/env zsh
 # Multi-project worktree manager with Claude support
-# Version: 1.5.0
+# Version: 1.7.0
 # NOTE: The version is also defined in the VERSION variable inside the w() function
 # 
 # ASSUMPTIONS & SETUP:
@@ -43,7 +43,7 @@
 #   w <project> <worktree>              # cd to worktree (creates if needed)
 #   w <project> <worktree> <command>    # run command in worktree
 #   w --list                            # list all worktrees
-#   w --rm <project> <worktree>         # remove worktree
+#   w --rm <project> <worktree> [-f|--force]  # remove worktree
 #   w --cleanup                         # remove worktrees for merged PRs
 #   w --version                         # show version
 #   w --update                          # update to latest version
@@ -56,7 +56,7 @@
 
 # Multi-project worktree manager
 w() {
-    local VERSION="1.5.0"
+    local VERSION="1.7.0"
     local projects_dir="$HOME/projects"
     local worktrees_dir="$HOME/projects/worktrees"
     
@@ -85,22 +85,70 @@ w() {
         shift
         local project="$1"
         local worktree="$2"
+        shift 2
+
+        # Parse optional --force or -f flag
+        local force_flag=""
+        while [[ $# -gt 0 ]]; do
+            case "$1" in
+                --force|-f)
+                    force_flag="--force"
+                    shift
+                    ;;
+                *)
+                    echo "Unknown option: $1"
+                    echo "Usage: w --rm <project> <worktree> [-f|--force]"
+                    return 1
+                    ;;
+            esac
+        done
+
         if [[ -z "$project" || -z "$worktree" ]]; then
-            echo "Usage: w --rm <project> <worktree>"
+            echo "Usage: w --rm <project> <worktree> [-f|--force]"
             return 1
         fi
-        # Check both locations for core
+
+        # Determine worktree path
+        local wt_path=""
         if [[ "$project" == "core" && -d "$projects_dir/core-wts/$worktree" ]]; then
-            (cd "$projects_dir/$project" && git worktree remove "$projects_dir/core-wts/$worktree")
+            wt_path="$projects_dir/core-wts/$worktree"
+        elif [[ -d "$worktrees_dir/$project/$worktree" ]]; then
+            wt_path="$worktrees_dir/$project/$worktree"
         else
-            local wt_path="$worktrees_dir/$project/$worktree"
-            if [[ ! -d "$wt_path" ]]; then
-                echo "Worktree not found: $wt_path"
-                return 1
-            fi
-            (cd "$projects_dir/$project" && git worktree remove "$wt_path")
+            echo "Worktree not found: $project/$worktree"
+            echo "Checked locations:"
+            echo "  • $projects_dir/core-wts/$worktree (legacy core)"
+            echo "  • $worktrees_dir/$project/$worktree"
+            return 1
         fi
-        return $?
+
+        # Try to remove the worktree
+        local git_error
+        git_error=$(cd "$projects_dir/$project" && git worktree remove $force_flag "$wt_path" 2>&1)
+        local exit_code=$?
+
+        if [[ $exit_code -ne 0 ]]; then
+            # Check if error is about modified/untracked files
+            if [[ "$git_error" == *"contains modified or untracked files"* && -z "$force_flag" ]]; then
+                echo "Error: Worktree contains modifications"
+                echo ""
+
+                # Show what files are modified/untracked
+                echo "Modified or untracked files:"
+                (cd "$wt_path" && git status --short 2>/dev/null)
+                echo ""
+
+                echo "Use --force to remove anyway:"
+                echo "  w --rm $project $worktree --force"
+                return 1
+            else
+                # Other error, just display it
+                echo "$git_error"
+                return $exit_code
+            fi
+        fi
+
+        return 0
     elif [[ "$1" == "--cleanup" ]]; then
         # Check if gh CLI is available
         if ! command -v gh &> /dev/null; then
@@ -471,7 +519,7 @@ w() {
     if [[ -z "$project" || -z "$worktree" ]]; then
         echo "Usage: w <project> <worktree> [command...]"
         echo "       w --list"
-        echo "       w --rm <project> <worktree>"
+        echo "       w --rm <project> <worktree> [-f|--force]"
         echo "       w --cleanup"
         echo "       w --copy-pr-link [project] [worktree]"
         echo "       w --version"

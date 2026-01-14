@@ -176,6 +176,17 @@ _w() {
             ;;
             
         command)
+            # Handle --rm flag completion
+            if [[ "${words[1]}" == "--rm" ]]; then
+                local -a rm_flags
+                rm_flags=(
+                    '--force:Force removal of dirty worktree'
+                    '-f:Force removal of dirty worktree'
+                )
+                _describe -t rm_flags 'flag' rm_flags
+                return 0
+            fi
+
             # Suggest common commands when user has typed project and worktree
             local -a common_commands
             common_commands=(
@@ -191,13 +202,13 @@ _w() {
                 'yarn:Run yarn commands'
                 'make:Run make commands'
             )
-            
+
             _describe -t commands 'command' common_commands
-            
+
             # Also complete regular commands
             _command_names -e
             ;;
-            
+
         command_args)
             # Let zsh handle completion for the specific command
             words=(${words[4,-1]})

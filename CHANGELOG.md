@@ -5,6 +5,52 @@ All notable changes to Worktree Wrangler will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-01-14
+
+### Added
+- **Force removal support for dirty worktrees** with `--force` or `-f` flag
+- **Enhanced error messages** showing which files are modified or untracked when removal fails
+- **Helpful suggestions** automatically recommend using `--force` when removal is blocked by uncommitted changes
+- **Tab completion support** for `--force` and `-f` flags in the `--rm` command
+
+### Changed
+- `w --rm` command now accepts optional `--force` or `-f` flag: `w --rm <project> <worktree> [-f|--force]`
+- Error handling improved to show git status output when worktree removal fails due to modifications
+- Help text and usage messages updated to document the new force removal option
+
+### Use Cases
+- Remove worktrees with files created by setup scripts without manual cleanup
+- Quickly clean up experimental worktrees without committing or stashing changes
+- Force removal when MCP agents or automation tools create files immediately after worktree creation
+
+### Examples
+```bash
+# Remove clean worktree (existing behavior)
+w --rm massage_tracker feature-branch
+
+# Remove dirty worktree with uncommitted changes (new feature)
+w --rm massage_tracker feature-branch --force
+w --rm massage_tracker feature-branch -f  # short form
+
+# Enhanced error message when --force is needed
+$ w --rm massage_tracker feature-branch
+Error: Worktree contains modifications
+
+Modified or untracked files:
+ M package.json
+?? node_modules/
+
+Use --force to remove anyway:
+  w --rm massage_tracker feature-branch --force
+```
+
+### Technical Details
+- Flag parsing implemented with proper error handling for unknown options
+- Git error output captured and analyzed to detect modification errors
+- Colored output for better readability of error messages and suggestions
+- Force flag passed directly to `git worktree remove --force` when specified
+- Completion system updated to offer `--force` and `-f` as third argument options
+
 ## [1.5.0] - 2025-08-18
 
 ### 🔄 BREAKING CHANGE: Per-Repository Script Configuration
