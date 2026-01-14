@@ -40,6 +40,7 @@ test_files=(
     "tests.bats"
     "subdir-tests.bats"
     "test-new-features.bats"
+    "test-force-removal.bats"
 )
 
 for test_file in "${test_files[@]}"; do

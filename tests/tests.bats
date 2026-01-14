@@ -51,7 +51,7 @@ teardown() {
 @test "w --version shows version" {
     run w --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *v1.6.0* ]]
+    [[ "$output" == *v1.7.0* ]]
 }
 
 @test "w without args shows usage" {
