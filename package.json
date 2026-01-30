@@ -12,7 +12,11 @@
     "dev": "bun run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target node",
     "start": "node dist/index.js",
-    "test": "bun test"
+    "test": "bun test",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "check": "biome check --write ."
   },
   "keywords": [
     "git",
@@ -26,6 +30,7 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
+    "@biomejs/biome": "^2.3.13",
     "@types/bun": "latest",
     "@types/node": "^25.1.0"
   },
