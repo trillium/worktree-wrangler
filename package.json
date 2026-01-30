@@ -38,7 +38,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "commander": "^14.0.2"
+    "commander": "^14.0.2",
+    "ralph-cli": "github:trillium/ralph-cli"
   },
   "engines": {
     "node": ">=20.0.0"

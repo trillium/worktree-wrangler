@@ -1,0 +1,22 @@
+{
+	"project": "Worktree Wrangler TypeScript Port",
+	"description": "Active development stories for porting Worktree Wrangler from zsh to TypeScript",
+	"stories": [
+		{
+			"id": "story-1",
+			"title": "Phase 1: Core Infrastructure Setup",
+			"description": "Set up TypeScript project structure with all necessary build tooling, type definitions, and base interfaces as outlined in TYPESCRIPT-PORT-DESIGN.md Phase 1",
+			"priority": "high",
+			"passes": false,
+			"acceptanceCriteria": [
+				"TypeScript compilation configured and working",
+				"All type definitions from design doc implemented",
+				"Base interfaces and abstract classes created",
+				"Utility modules (exec, filesystem, validation) implemented with tests",
+				"Build produces working executable"
+			],
+			"dependencies": [],
+			"attempts": []
+		}
+	]
+}

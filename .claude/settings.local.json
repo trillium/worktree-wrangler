@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./run-all-tests.sh)",
+      "Read(//Users/trilliumsmith/.local/share/worktree-wrangler/**)",
+      "Bash(cat:*)",
+      "Bash(bats:*)",
+      "Bash(./tests/run-all-tests.sh:*)",
+      "Bash(tests/run-all-tests.sh:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
